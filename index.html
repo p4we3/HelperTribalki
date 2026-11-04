@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planer ataków TW2</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: narzędzie w dwóch strefach: wejście (świat, offy, cele) nad planem wysyłek; plan to główny wynik. */
+:root{
+  --bg:#e9ece6; --surface:#f8f9f5; --line:#cfd5c9; --ink:#1c231e; --muted:#5b665d;
+  --accent:#7a2430; --accent-soft:#f1dfe0; --ok:#2f6b3c; --warn:#a0620c; --bad:#a3262c;
+  --f-display:"Barlow Semi Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#151a17; --surface:#1d2420; --line:#334038; --ink:#e4e9e2; --muted:#9aa79d;
+  --accent:#e0848d; --accent-soft:#3a2427; --ok:#7cc48b; --warn:#e3a54a; --bad:#ef7d82; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#151a17; --surface:#1d2420; --line:#334038; --ink:#e4e9e2; --muted:#9aa79d;
+  --accent:#e0848d; --accent-soft:#3a2427; --ok:#7cc48b; --warn:#e3a54a; --bad:#ef7d82; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1180px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+h1,h2{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:30px;font-weight:700}
+h2{font-size:19px;font-weight:600;display:flex;gap:10px;align-items:baseline}
+h2 small{font-family:var(--f-body);font-size:13px;color:var(--muted);font-weight:400}
+header{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;justify-content:space-between}
+header p{margin:0;color:var(--muted);max-width:70ch}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;gap:12px;min-width:0;align-content:start}
+label{display:grid;gap:4px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+input,select,textarea{font:inherit;font-size:14px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:7px 9px;width:100%;min-width:0;text-transform:none;letter-spacing:0}
+textarea{font-family:var(--f-mono);font-size:13px;min-height:150px;resize:vertical;line-height:1.55}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 140px}
+.check{display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:14px;color:var(--ink);font-weight:500}
+.check input{width:auto}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.hint code,.mono{font-family:var(--f-mono);font-size:12.5px}
+button{font:inherit;font-weight:600;font-size:14px;border-radius:5px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button:hover{filter:brightness(1.06)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--bg)}
+td.t{font-family:var(--f-mono);font-size:13px}
+tr:last-child td{border-bottom:0}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.pill.soon{color:var(--warn)} .pill.now{color:var(--bad)} .pill.later{color:var(--ok)} .pill.past{color:var(--muted)}
+tr.sent td{opacity:.45}
+.summary{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:14px}
+.summary b{font-family:var(--f-mono);font-weight:600}
+.msgs{display:grid;gap:4px;font-size:13px;color:var(--warn)}
+.tag{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:4px}
+details summary{cursor:pointer;font-weight:600}
+.view{display:grid;gap:18px}
+[hidden]{display:none!important}
+.lead{font-size:15px;max-width:75ch}
+.tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:3px}
+.tabs a{padding:6px 14px;border-radius:5px;text-decoration:none;color:var(--muted);font-weight:600;font-size:14px}
+.tabs a[aria-current="page"]{background:var(--accent);color:var(--surface)}
+table.armies input{width:84px;padding:5px 7px;font-family:var(--f-mono);font-size:13px}
+table.armies input.nm{width:130px;font-family:var(--f-body)}
+table.armies th{vertical-align:bottom}
+.x{border:0;background:none;color:var(--muted);padding:2px 6px;font-size:13px}
+.verdicts{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.verdict{border:1px solid var(--line);border-radius:6px;padding:10px 12px;display:grid;gap:6px;background:var(--bg);min-width:0}
+.verdict h3{margin:0;font-family:var(--f-display);font-size:16px;font-weight:600;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.verdict .pill.win{color:var(--ok)} .verdict .pill.lose{color:var(--bad)}
+.verdict ul{margin:0;padding-left:18px;font-size:13px;font-variant-numeric:tabular-nums}
+td.gone{color:var(--muted)} td.zero{color:var(--ok);font-weight:600}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <h1>Planer ataków TW2</h1>
+    <nav class="tabs" aria-label="Widok">
+      <a href="#plan" id="tab-plan">Planer wysyłek</a>
+      <a href="#walka" id="tab-walka">Kalkulator walki</a>
+      <a href="#koszty" id="tab-koszty">Koszty wojsk</a>
+    </nav>
+  </header>
+
+  <div class="view" id="view-plan">
+  <p class="hint lead">Wpisz wioski z offem i cele. Planer liczy dystans na mapie heksagonalnej, czas marszu najwolniejszej jednostki i godzinę wysyłki, żeby atak doszedł na czas.</p>
+
+  <section class="panel">
+    <h2>Świat <small>czas w planerze to czas Twojego urządzenia; sprawdź, czy zgadza się z zegarem gry</small></h2>
+    <div class="row">
+      <label for="arrival">Domyślna godzina dojścia<input id="arrival" type="datetime-local" step="1"></label>
+      <label for="defUnit">Domyślna jednostka offa<select id="defUnit"></select></label>
+    </div>
+    <div class="row">
+      <label class="check" for="night"><input id="night" type="checkbox"> Nie planuj wysyłek w nocy</label>
+      <label for="nightFrom">od godz.<input id="nightFrom" type="number" min="0" max="23" value="1"></label>
+      <label for="nightTo">do godz.<input id="nightTo" type="number" min="0" max="23" value="7"></label>
+      <label class="check" for="skipPast"><input id="skipPast" type="checkbox" checked> Pomijaj wysyłki, które już minęły</label>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>Moje offy <span class="tag" id="offTag">przykład</span></h2>
+      <textarea id="offs" spellcheck="false"></textarea>
+      <p class="hint">Jedna wioska w linii: <code>współrzędne [jednostka] [nazwa]</code>, np. <code>512|488 taran Off 1</code>. Jednostka to najwolniejsza w ataku: <code>taran</code>, <code>szlachcic</code>, <code>topor</code>, <code>lk</code>, <code>ck</code>, <code>trebusz</code>… Bez jednostki bierze domyślną. Żeby wymusić cel, dopisz <code>-&gt; 498|501</code>.</p>
+    </section>
+    <section class="panel">
+      <h2>Cele <span class="tag" id="tgtTag">przykład</span></h2>
+      <textarea id="targets" spellcheck="false"></textarea>
+      <p class="hint">Jedna wioska w linii: <code>współrzędne [liczba ataków] [godzina dojścia]</code>, np. <code>498|501 3 03.11 07:30:00</code>. Bez liczby to 1 atak, bez godziny obowiązuje domyślna.</p>
+    </section>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="plan">Zaplanuj ataki</button>
+    <button id="copyTxt">Kopiuj plan</button>
+    <span class="hint" id="copyMsg" aria-live="polite"></span>
+  </div>
+
+  <section class="panel">
+    <h2>Plan wysyłek <small id="nowClock"></small></h2>
+    <div class="summary" id="summary"></div>
+    <div class="msgs" id="msgs"></div>
+    <div class="tablebox"><table>
+      <thead><tr><th>Status</th><th>Wyślij o</th><th>Z wioski</th><th>Do celu</th><th>Jednostka</th><th>Dystans</th><th>Marsz</th><th>Dojście</th><th>Wysłane</th></tr></thead>
+      <tbody id="planBody"></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Tabela czasów marszu (każdy off do każdego celu)</summary>
+      <div class="tablebox" style="margin-top:12px"><table id="matrix"></table></div>
+    </details>
+    <details>
+      <summary>Prędkości jednostek i wzór na dystans</summary>
+      <div class="tablebox" style="margin-top:12px"><table id="speeds"></table></div>
+      <p class="hint" style="margin-top:10px">Mapa TW2 to heksy: nieparzyste wiersze są przesunięte o pół pola w prawo, a wiersze leżą gęściej (wysokość √3/2). Dystans = √((Δx')² + (Δy·0,866)²), gdzie x' = x + 0,5 dla nieparzystego y. Czas marszu = dystans × minuty na pole, zaokrąglony do sekundy. Jeśli czas w grze różni się od planera, daj znać, poprawię wzór.</p>
+    </details>
+  </section>
+  </div>
+
+  <div class="view" id="view-walka" hidden>
+  <p class="hint lead">Wpisz wojska w celu i wojska z jednej lub kilku swoich wiosek. Ataki dochodzą po kolei, więc każdy kolejny walczy z tym, co zostało po poprzednim. Pod spodem zobaczysz straty i ile wojska zostanie w wiosce.</p>
+
+  <section class="panel">
+    <h2>Warunki walki</h2>
+    <div class="row">
+      <label for="bWall">Mur w celu (poziom)<input id="bWall" type="number" min="0" max="20" value="10"></label>
+      <label for="bFaithD">Wiara obrońcy<select id="bFaithD"><option value="100">100% (jest kościół)</option><option value="50">50% (brak)</option></select></label>
+      <label for="bFaithA">Wiara atakującego<select id="bFaithA"><option value="100">100%</option><option value="50">50%</option></select></label>
+      <label for="bMorale">Morale (%)<input id="bMorale" type="number" min="50" max="100" value="100"></label>
+      <label for="bLuck">Szczęście (%)<input id="bLuck" type="number" min="-15" max="15" value="0"></label>
+      <label for="bBonus">Bonus ataku (%)<input id="bBonus" type="number" min="0" max="30" value="0"></label>
+    </div>
+    <div class="row">
+      <label class="check" for="bNight"><input id="bNight" type="checkbox"> Bonus nocny (obrona ×2)</label>
+    </div>
+    <p class="hint">Bonus ataku to np. Arcymistrz (+10%) albo umiejętność plemienia (do +10%). Szczęście w grze losuje się od −15% do +15%; zostaw 0, żeby zobaczyć średni wynik.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Wojska <small>obrona celu i Twoje ataki w kolejności dojścia</small></h2>
+    <div class="actions">
+      <button id="bAdd">Dodaj atak</button>
+      <button id="bExample">Wstaw przykład</button>
+      <button id="bClear">Wyczyść</button>
+    </div>
+    <div class="tablebox"><table class="armies" id="bInput"></table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Wynik</h2>
+    <div id="bVerdicts" class="verdicts"></div>
+    <div class="tablebox"><table id="bDefOut"></table></div>
+    <details>
+      <summary>Jak liczę walkę</summary>
+      <p class="hint" style="margin-top:10px">Siła ataku to suma ataku jednostek, rozbita na piechotę, kawalerię i łuczników. Obrona każdej jednostki liczy się w tych samych proporcjach (np. przy samej kawalerii liczy się tylko obrona przed kawalerią). Do obrony dochodzi podstawowa obrona muru, a całość mnoży się przez bonus muru (+5% za poziom), wiarę i noc. Silniejsza strona wygrywa, przegrany traci wszystko, a zwycięzca traci (słabsza / silniejsza)^1,5 swoich wojsk. Berserker bije z podwójną siłą, gdy obrona jest silniejsza od ataku. Nie liczę jeszcze burzenia muru taranami ani specjalnej zdolności trebusza. To przybliżenie zasad TW2, nie oficjalny symulator; jeśli wynik w grze wyjdzie inny, wyślij mi raport, dopasuję wzór.</p>
+    </details>
+  </section>
+  </div>
+
+  <div class="view" id="view-koszty" hidden>
+  <p class="hint lead">Planer dobiera liczbę każdej jednostki tak, żeby surowiec, którego potrzeba najwięcej, wyszedł dokładnie na zadaną kwotę (domyślnie 600 000). Obok widać, ile wtedy trzeba pozostałych surowców. Liczby jednostek możesz też zmieniać ręcznie.</p>
+
+  <section class="panel">
+    <h2>Koszt rekrutacji</h2>
+    <div class="actions">
+      <label for="cBudget" style="flex:0 1 220px">Najdroższy surowiec<input id="cBudget" type="number" min="0" step="10000" value="600000"></label>
+      <button id="cApply">Przelicz jednostki</button>
+      <button id="cClear">Wyczyść</button>
+      <label class="check" for="cMore"><input id="cMore" type="checkbox"> Pokaż też tarany, katapulty, berserkerów, trebusze i szlachcica</label>
+    </div>
+    <div class="tablebox"><table class="armies" id="cTable"></table></div>
+    <p class="hint">Koszty i czasy z <a href="https://support.innogames.com/kb/TribalWars2/en_DK/1537" target="_blank" rel="noopener">pomocy InnoGames</a>. Czas rekrutacji to czas bazowy jednej jednostki; wyższy poziom koszar i stajni go skraca.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Na ile starczy <small>surowce, które masz</small></h2>
+    <div class="row">
+      <label for="cWood">Drewno<input id="cWood" type="number" min="0" placeholder="0"></label>
+      <label for="cClay">Glina<input id="cClay" type="number" min="0" placeholder="0"></label>
+      <label for="cIron">Żelazo<input id="cIron" type="number" min="0" placeholder="0"></label>
+    </div>
+    <p class="hint">Liczba w kolumnie „Starczy na” w tabeli wyżej pokazuje, ile sztuk danej jednostki zrobisz z tych surowców, gdybyś rekrutował tylko ją.</p>
+  </section>
+  </div>
+</div>
+
+<script>
+const UNITS = {
+  spear:{n:"Pikinier",m:14,a:["pik","pikinier","spear"]},
+  sword:{n:"Miecznik",m:18,a:["miecz","miecznik","sword"]},
+  axe:{n:"Topornik",m:14,a:["topor","topór","topornik","axe"]},
+  archer:{n:"Łucznik",m:14,a:["luk","łuk","lucznik","łucznik","archer"]},
+  light_cavalry:{n:"Lekka kawaleria",m:8,a:["lk","lekka","lc"]},
+  mounted_archer:{n:"Łucznik konny",m:8,a:["lnk","lk2","konny","ma"]},
+  heavy_cavalry:{n:"Ciężka kawaleria",m:9,a:["ck","ciezka","ciężka","hc"]},
+  ram:{n:"Taran",m:24,a:["taran","tarany","ram"]},
+  catapult:{n:"Katapulta",m:24,a:["kat","katapulta","katy","cat"]},
+  knight:{n:"Rycerz",m:8,a:["rycerz","paladyn","knight"]},
+  snob:{n:"Szlachcic",m:35,a:["szlachcic","szlachta","grubas","snob","noble"]},
+  doppelsoldner:{n:"Berserker",m:14,a:["berserker","bers","berserk"]},
+  trebuchet:{n:"Trebusz",m:50,a:["trebusz","trebuchet","treb"]},
+};
+const ALIAS = {};
+for (const [k,u] of Object.entries(UNITS)) u.a.forEach(a => ALIAS[a]=k);
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,"0");
+const SAMPLE_OFFS = "512|488 taran Off północ\n515|491 taran Off 2\n509|494 taran\n520|483 szlachcic Grubas A\n518|486 szlachcic Grubas B\n506|490 lk Fejk LK -> 498|501";
+const SAMPLE_TGTS = "498|501 3\n502|497 2\n495|505 1";
+
+// ---- geometria TW2 (heksy, nieparzyste wiersze przesunięte o pół pola)
+function dist(a,b){
+  const ax = a.x + (a.y & 1 ? 0.5 : 0), bx = b.x + (b.y & 1 ? 0.5 : 0);
+  const dy = (a.y - b.y) * Math.sqrt(3)/2;
+  return Math.sqrt((ax-bx)**2 + dy*dy);
+}
+function travelSec(d, unit){
+  return Math.round(d * UNITS[unit].m * 60);
+}
+function fmtDur(s){ const h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return `${h}:${pad(m)}:${pad(x)}`; }
+function fmtDate(d){ return `${pad(d.getDate())}.${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function toLocalInput(d){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+
+// "03.11 07:30", "03.11.2026 07:30:15", "2026-11-03 07:30", "07:30" (dzień z domyślnej godziny)
+function parseWhen(str, fallback){
+  let m = str.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) { const y = m[3] ? +m[3] : fallback.getFullYear(); return new Date(y, m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)); }
+  m = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) return new Date(+m[1], m[2]-1, +m[3], +m[4], +m[5], +(m[6]||0));
+  m = str.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\s|$)/);
+  if (m) { const d = new Date(fallback); d.setHours(+m[1], +m[2], +(m[3]||0), 0); return d; }
+  return null;
+}
+const coordRe = /(\d{1,3})\s*[|:]\s*(\d{1,3})/;
+const key = c => `${c.x}|${c.y}`;
+
+function parseOffs(text, warn){
+  const out = [];
+  text.split("\n").forEach((raw,i) => {
+    const line = raw.trim(); if (!line || line.startsWith("#")) return;
+    const [left, right] = line.split("->");
+    const m = left.match(coordRe);
+    if (!m) { warn(`Offy, linia ${i+1}: brak współrzędnych („${line}”).`); return; }
+    const rest = left.replace(m[0], " ").trim().split(/\s+/).filter(Boolean);
+    let unit = $("defUnit").value, nameParts = [];
+    rest.forEach(w => { const k = ALIAS[w.toLowerCase()]; if (k && unit === $("defUnit").value && !nameParts.length) unit = k; else nameParts.push(w); });
+    let forced = null;
+    if (right) { const t = right.match(coordRe); if (t) forced = {x:+t[1], y:+t[2]}; else warn(`Offy, linia ${i+1}: po „->” brak współrzędnych celu.`); }
+    out.push({x:+m[1], y:+m[2], unit, name: nameParts.join(" "), forced});
+  });
+  return out;
+}
+function parseTargets(text, defArrival, warn){
+  const out = [];
+  text.split("\n").forEach((raw,i) => {
+    const line = raw.trim(); if (!line || line.startsWith("#")) return;
+    const m = line.match(coordRe);
+    if (!m) { warn(`Cele, linia ${i+1}: brak współrzędnych („${line}”).`); return; }
+    const rest = line.replace(m[0], " ").trim();
+    const when = parseWhen(rest, defArrival);
+    const restNoTime = rest.replace(/\d{1,2}\.\d{1,2}(\.\d{4})?|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}:\d{2}(:\d{2})?/g, " ");
+    const cnt = restNoTime.match(/\b(\d{1,2})\b/);
+    out.push({x:+m[1], y:+m[2], count: cnt ? +cnt[1] : 1, arrival: when || defArrival});
+  });
+  return out;
+}
+function inNight(d){
+  if (!$("night").checked) return false;
+  const f = +$("nightFrom").value, t = +$("nightTo").value, h = d.getHours();
+  return f <= t ? (h >= f && h < t) : (h >= f || h < t);
+}
+
+let PLAN = [], DONE = new Set();
+
+function build(){
+  const msgs = [], warn = s => msgs.push(s);
+  const defArrival = $("arrival").value ? new Date($("arrival").value) : new Date(Date.now()+12*3600e3);
+  const offs = parseOffs($("offs").value, warn);
+  const tgts = parseTargets($("targets").value, defArrival, warn);
+  const now = Date.now();
+  const need = new Map(tgts.map(t => [key(t), {...t, left:t.count}]));
+  const used = new Set(), plan = [];
+  const mk = (o, t) => { const d = dist(o,t), s = travelSec(d,o.unit); return {o, t, d, s, send:new Date(t.arrival.getTime() - s*1000)}; };
+  const ok = p => !(($("skipPast").checked && p.send.getTime() < now) || inNight(p.send));
+
+  offs.forEach((o,i) => {
+    if (!o.forced) return;
+    const t = need.get(key(o.forced)) || {...o.forced, arrival: defArrival, left: 0};
+    const p = mk(o, t); used.add(i);
+    if (!ok(p)) warn(`${key(o)} -> ${key(t)}: wysyłka ${fmtDate(p.send)} wypada w przeszłości albo w nocy. Dodaję mimo to, bo cel był wymuszony.`);
+    plan.push(p); if (t.left) t.left--;
+  });
+  // przydział zachłanny: najkrótsze marsze najpierw
+  const cand = [];
+  offs.forEach((o,i) => { if (used.has(i)) return; need.forEach(t => { const p = mk(o,t); p.i = i; if (ok(p)) cand.push(p); }); });
+  cand.sort((a,b) => a.s - b.s);
+  for (const p of cand) { if (used.has(p.i) || p.t.left <= 0) continue; used.add(p.i); p.t.left--; plan.push(p); }
+
+  need.forEach(t => { if (t.left > 0) warn(`Cel ${key(t)}: brakuje ${t.left} z ${t.count} ataków (za mało offów albo wszystkie wysyłki w przeszłości / w nocy).`); });
+  const idle = offs.filter((o,i) => !used.has(i));
+  if (idle.length) warn(`Niewykorzystane offy: ${idle.map(o=>key(o)).join(", ")}.`);
+
+  plan.sort((a,b) => a.send - b.send);
+  PLAN = plan;
+  const keys = new Set(plan.map(pid));
+  DONE = new Set([...DONE].filter(k => keys.has(k)));
+  $("msgs").innerHTML = msgs.map(m => `<div>${esc(m)}</div>`).join("");
+  $("summary").innerHTML = `<span>Offy: <b>${offs.length}</b></span><span>Cele: <b>${tgts.length}</b></span><span>Zaplanowane ataki: <b>${plan.length}</b></span>` +
+    (plan.length ? `<span>Pierwsza wysyłka: <b>${fmtDate(plan[0].send)}</b></span><span>Ostatnia: <b>${fmtDate(plan[plan.length-1].send)}</b></span>` : "");
+  renderPlan(); renderMatrix(offs, tgts); save();
+}
+const pid = p => `${key(p.o)}>${key(p.t)}@${p.t.arrival.getTime()}`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function status(p){
+  if (DONE.has(pid(p))) return `<span class="pill past">wysłane</span>`;
+  const left = Math.round((p.send.getTime() - Date.now())/1000);
+  if (left < 0) return `<span class="pill past">minęło ${fmtDur(-left)}</span>`;
+  if (left <= 120) return `<span class="pill now">za ${fmtDur(left)}</span>`;
+  if (left <= 900) return `<span class="pill soon">za ${fmtDur(left)}</span>`;
+  return `<span class="pill later">za ${fmtDur(left)}</span>`;
+}
+function renderPlan(){
+  $("planBody").innerHTML = PLAN.length ? PLAN.map((p,i) => `<tr class="${DONE.has(pid(p))?"sent":""}">
+    <td data-st="${i}">${status(p)}</td><td class="t"><b>${fmtDate(p.send)}</b></td>
+    <td class="t">${key(p.o)}${p.o.name?` <span class="hint">${esc(p.o.name)}</span>`:""}</td><td class="t">${key(p.t)}</td>
+    <td>${UNITS[p.o.unit].n}</td><td class="t">${p.d.toFixed(2)}</td><td class="t">${fmtDur(p.s)}</td><td class="t">${fmtDate(p.t.arrival)}</td>
+    <td><input type="checkbox" id="done-${i}" data-i="${i}" ${DONE.has(pid(p))?"checked":""} aria-label="Oznacz jako wysłane"></td></tr>`).join("")
+    : `<tr><td colspan="9" class="hint">Brak ataków do pokazania. Sprawdź komunikaty powyżej.</td></tr>`;
+}
+function tick(){
+  $("nowClock").textContent = "teraz " + fmtDate(new Date());
+  PLAN.forEach((p,i) => { const c = document.querySelector(`[data-st="${i}"]`); if (c) c.innerHTML = status(p); });
+}
+function renderMatrix(offs, tgts){
+  if (!offs.length || !tgts.length) { $("matrix").innerHTML = ""; return; }
+  $("matrix").innerHTML = `<thead><tr><th>Off \\ cel</th>${tgts.map(t=>`<th>${key(t)}</th>`).join("")}</tr></thead><tbody>` +
+    offs.map(o => `<tr><td class="t">${key(o)} <span class="hint">${UNITS[o.unit].n}</span></td>${tgts.map(t => { const d = dist(o,t); return `<td class="t">${fmtDur(travelSec(d,o.unit))} <span class="hint">(${d.toFixed(1)})</span></td>`; }).join("")}</tr>`).join("") + "</tbody>";
+}
+function renderSpeeds(){
+  $("speeds").innerHTML = `<thead><tr><th>Jednostka</th><th>Min. na pole</th><th>Skróty</th></tr></thead><tbody>` +
+    Object.values(UNITS).map(u => `<tr><td>${u.n}</td><td class="t">${u.m}</td><td class="t">${u.a.slice(0,3).join(", ")}</td></tr>`).join("") + "</tbody>";
+}
+function planText(){
+  return PLAN.map(p => `${fmtDate(p.send)} | ${key(p.o)}${p.o.name?" ("+p.o.name+")":""} -> ${key(p.t)} | ${UNITS[p.o.unit].n} | marsz ${fmtDur(p.s)} | dojście ${fmtDate(p.t.arrival)}`).join("\n");
+}
+
+// ---- zapis lokalny
+const FIELDS = ["arrival","defUnit","night","nightFrom","nightTo","skipPast","offs","targets"];
+function save(){ try { const s = {}; FIELDS.forEach(f => { const e=$(f); s[f] = e.type==="checkbox"?e.checked:e.value; }); s.done=[...DONE]; localStorage.setItem("tw2planer", JSON.stringify(s)); } catch(e){} }
+function load(){ try { const s = JSON.parse(localStorage.getItem("tw2planer")||"null"); if (!s) return false;
+  FIELDS.forEach(f => { if (s[f]===undefined) return; const e=$(f); if (e.type==="checkbox") e.checked=s[f]; else e.value=s[f]; }); DONE = new Set(s.done||[]); return true; } catch(e){ return false; } }
+
+$("defUnit").innerHTML = Object.entries(UNITS).map(([k,u]) => `<option value="${k}">${u.n} (${u.m} min/pole)</option>`).join("");
+$("defUnit").value = "ram";
+const loaded = load();
+if (!loaded || (!$("offs").value && !$("targets").value)) {
+  $("offs").value = SAMPLE_OFFS; $("targets").value = SAMPLE_TGTS;
+  const d = new Date(Date.now()+ 48*3600e3); d.setHours(7,30,0,0); $("arrival").value = toLocalInput(d);
+}
+const markSample = () => { $("offTag").hidden = $("offs").value !== SAMPLE_OFFS; $("tgtTag").hidden = $("targets").value !== SAMPLE_TGTS; };
+markSample();
+["offs","targets"].forEach(id => $(id).addEventListener("input", markSample));
+["arrival","defUnit","night","nightFrom","nightTo","skipPast"].forEach(id => $(id).addEventListener("change", () => { renderSpeeds(); build(); }));
+$("plan").addEventListener("click", build);
+$("planBody").addEventListener("change", e => { const i = e.target.dataset.i; if (i===undefined) return; const k = pid(PLAN[i]); e.target.checked ? DONE.add(k) : DONE.delete(k); renderPlan(); save(); });
+$("copyTxt").addEventListener("click", () => {
+  const t = planText();
+  const done = () => { $("copyMsg").textContent = "Skopiowano plan."; setTimeout(()=>$("copyMsg").textContent="",2500); };
+  try { navigator.clipboard.writeText(t).then(done, () => fallback(t)); } catch(e){ fallback(t); }
+});
+function fallback(t){ $("copyMsg").textContent = "Nie udało się skopiować automatycznie. Plan jest niżej w tabeli; zaznacz i skopiuj ręcznie."; }
+renderSpeeds(); build(); tick(); setInterval(tick, 1000);
+
+// ================= kalkulator walki =================
+// [atak, obr. piechota, obr. kawaleria, obr. łucznicy, klasa ataku]
+const STATS = {
+  spear:[10,25,45,10,"inf"], sword:[25,55,5,30,"inf"], axe:[45,10,5,10,"inf"], archer:[25,10,30,60,"arc"],
+  light_cavalry:[130,30,40,30,"cav"], mounted_archer:[150,40,30,50,"arc"], heavy_cavalry:[150,200,160,180,"cav"],
+  ram:[2,20,50,20,"inf"], catapult:[100,100,50,100,"inf"], knight:[150,250,400,150,"cav"],
+  snob:[30,100,50,100,"inf"], doppelsoldner:[100,100,50,100,"inf"], trebuchet:[30,200,250,200,"inf"],
+};
+const UK = Object.keys(STATS);
+const nf = n => Math.round(n).toLocaleString("pl-PL");
+let B = { def:{}, atks:[{name:"Atak 1", u:{}}] };
+const B_FIELDS = ["bWall","bFaithD","bFaithA","bMorale","bLuck","bBonus","bNight"];
+const EXAMPLE = {
+  def:{spear:8000, sword:7000, archer:5000, heavy_cavalry:400},
+  atks:[{name:"512|488 Off 1", u:{axe:6000, light_cavalry:2500, mounted_archer:500, ram:300}},
+        {name:"515|491 Off 2", u:{axe:5000, light_cavalry:2000, ram:250, doppelsoldner:200}},
+        {name:"520|483 Grubas", u:{axe:500, light_cavalry:300, snob:1}}]
+};
+
+function mods(){
+  const v = id => parseFloat($(id).value) || 0;
+  const wall = Math.max(0, Math.min(20, v("bWall")));
+  return {
+    wall,
+    atk: (v("bFaithA")/100) * (v("bMorale")/100) * (1 + v("bLuck")/100) + v("bBonus")/100,
+    def: (v("bFaithD")/100) * (1 + 0.05*wall) * ($("bNight").checked ? 2 : 1),
+    base: wall > 0 ? 20 + 50*wall : 20,
+  };
+}
+function fight(att, def, m){
+  const strength = berserk => {
+    const cls = {inf:0, cav:0, arc:0};
+    UK.forEach(k => { const n = att[k]||0; if (!n) return; cls[STATS[k][4]] += n * STATS[k][0] * (k==="doppelsoldner" ? berserk : 1); });
+    const raw = cls.inf + cls.cav + cls.arc;
+    const A = raw * m.atk;
+    if (!raw) return {A:0, D:0};
+    const sh = {inf:cls.inf/raw, cav:cls.cav/raw, arc:cls.arc/raw};
+    let d = m.base;
+    UK.forEach(k => { const n = def[k]||0; if (n) d += n * (STATS[k][1]*sh.inf + STATS[k][2]*sh.cav + STATS[k][3]*sh.arc); });
+    return {A, D: d * m.def};
+  };
+  let r = strength(1), berserk = false;
+  if ((att.doppelsoldner||0) > 0 && r.D > r.A) { r = strength(2); berserk = true; }
+  const {A, D} = r;
+  if (!A) return null;
+  const attLeft = {}, defLeft = {};
+  let win, ratio;
+  if (A > D) { win = true; ratio = Math.pow(D/A, 1.5); UK.forEach(k => { attLeft[k] = (att[k]||0) - Math.round((att[k]||0)*ratio); defLeft[k] = 0; }); }
+  else { win = false; ratio = Math.pow(A/D, 1.5); UK.forEach(k => { attLeft[k] = 0; defLeft[k] = (def[k]||0) - Math.round((def[k]||0)*ratio); }); }
+  return {A, D, win, ratio, attLeft, defLeft, berserk};
+}
+
+function renderBattleInput(){
+  const head = `<thead><tr><th>Jednostka</th><th>Obrona celu</th>${B.atks.map((a,i)=>`<th><input class="nm" id="bn-${i}" data-name="${i}" value="${esc(a.name)}" aria-label="Nazwa ataku ${i+1}">${B.atks.length>1?`<button class="x" data-del="${i}" aria-label="Usuń atak">usuń</button>`:""}</th>`).join("")}</tr></thead>`;
+  const body = UK.map(k => `<tr><td>${UNITS[k].n}</td>
+    <td><input type="number" min="0" id="bd-${k}" data-col="def" data-u="${k}" value="${B.def[k]||""}" placeholder="0"></td>
+    ${B.atks.map((a,i)=>`<td><input type="number" min="0" id="ba-${i}-${k}" data-col="${i}" data-u="${k}" value="${a.u[k]||""}" placeholder="0"></td>`).join("")}</tr>`).join("");
+  $("bInput").innerHTML = head + "<tbody>" + body + "</tbody>";
+}
+function simulate(){
+  const m = mods();
+  let def = {...B.def};
+  const stages = [{label:"Przed atakami", def:{...def}}], cards = [];
+  B.atks.forEach((a,i) => {
+    const r = fight(a.u, def, m);
+    const title = esc(a.name || `Atak ${i+1}`);
+    if (!r) { cards.push(`<div class="verdict"><h3>${title}<span class="pill past">pusty</span></h3><p class="hint">Brak wojsk w tym ataku.</p></div>`); return; }
+    const sent = UK.reduce((s,k)=>s+(a.u[k]||0),0), back = UK.reduce((s,k)=>s+(r.attLeft[k]||0),0);
+    const lost = UK.filter(k => a.u[k]).map(k => `<li>${UNITS[k].n}: ${nf(a.u[k])} → wraca ${nf(r.attLeft[k])}</li>`).join("");
+    cards.push(`<div class="verdict"><h3>${title}<span class="pill ${r.win?"win":"lose"}">${r.win?"wygrana":"przegrana"}</span></h3>
+      <div class="hint">Siła ataku <b class="mono">${nf(r.A)}</b>, obrona <b class="mono">${nf(r.D)}</b>${r.berserk?", berserkerzy ×2":""}</div>
+      <div>${r.win ? `Twoje straty: <b>${Math.round(r.ratio*100)}%</b> (${nf(sent-back)} jedn.)` : `Obrońca traci <b>${Math.round(r.ratio*100)}%</b> wojsk, cały atak ginie`}</div>
+      <ul>${lost}</ul></div>`);
+    def = r.defLeft;
+    stages.push({label: `Po: ${title}`, def:{...def}});
+  });
+  $("bVerdicts").innerHTML = cards.join("");
+  const rows = UK.filter(k => stages.some(st => st.def[k]));
+  const last = stages[stages.length-1].def;
+  const total = UK.reduce((s,k)=>s+(last[k]||0),0);
+  $("bDefOut").innerHTML = `<thead><tr><th>Wojska w celu</th>${stages.map(st=>`<th>${st.label}</th>`).join("")}</tr></thead><tbody>` +
+    (rows.length ? rows.map(k => `<tr><td>${UNITS[k].n}</td>${stages.map((st,j)=>{const n = st.def[k]||0; return `<td class="t ${j && !n ? "zero":""}">${nf(n)}</td>`;}).join("")}</tr>`).join("")
+      + `<tr><td><b>Razem</b></td>${stages.map(st=>`<td class="t"><b>${nf(UK.reduce((s,k)=>s+(st.def[k]||0),0))}</b></td>`).join("")}</tr>`
+      : `<tr><td class="hint">Wpisz wojska w celu.</td></tr>`) + "</tbody>";
+  saveB();
+}
+function saveB(){ try { const s = {B}; B_FIELDS.forEach(f => { const e=$(f); s[f] = e.type==="checkbox"?e.checked:e.value; }); localStorage.setItem("tw2walka", JSON.stringify(s)); } catch(e){} }
+function loadB(){ try { const s = JSON.parse(localStorage.getItem("tw2walka")||"null"); if (!s) return false; B = s.B; B_FIELDS.forEach(f => { if (s[f]===undefined) return; const e=$(f); if (e.type==="checkbox") e.checked=s[f]; else e.value=s[f]; }); return true; } catch(e){ return false; } }
+
+if (!loadB()) B = JSON.parse(JSON.stringify(EXAMPLE));
+renderBattleInput(); simulate();
+$("bInput").addEventListener("input", e => {
+  const t = e.target;
+  if (t.dataset.name !== undefined) { B.atks[+t.dataset.name].name = t.value; simulate(); return; }
+  if (!t.dataset.u) return;
+  const n = Math.max(0, parseInt(t.value) || 0);
+  if (t.dataset.col === "def") B.def[t.dataset.u] = n; else B.atks[+t.dataset.col].u[t.dataset.u] = n;
+  simulate();
+});
+$("bInput").addEventListener("click", e => { const d = e.target.dataset.del; if (d === undefined) return; B.atks.splice(+d,1); renderBattleInput(); simulate(); });
+$("bAdd").addEventListener("click", () => { B.atks.push({name:`Atak ${B.atks.length+1}`, u:{}}); renderBattleInput(); simulate(); });
+$("bExample").addEventListener("click", () => { B = JSON.parse(JSON.stringify(EXAMPLE)); renderBattleInput(); simulate(); });
+$("bClear").addEventListener("click", () => { B = {def:{}, atks:[{name:"Atak 1", u:{}}]}; renderBattleInput(); simulate(); });
+B_FIELDS.forEach(id => $(id).addEventListener("input", simulate));
+
+// ================= koszty wojsk =================
+// [drewno, glina, żelazo, prowiant, czas rekrutacji w s]
+const COST = {
+  axe:[60,30,40,1,150], light_cavalry:[125,100,250,4,360], mounted_archer:[250,200,100,5,450], heavy_cavalry:[200,150,600,6,600],
+  spear:[50,30,20,1,90], sword:[30,30,70,1,120], archer:[80,30,60,1,180],
+  ram:[300,200,200,5,480], catapult:[320,400,100,8,450], doppelsoldner:[1200,1200,2400,8,1200], trebuchet:[4000,2000,2000,10,1200], snob:[40000,50000,50000,100,10800],
+};
+const MAIN7 = ["axe","light_cavalry","mounted_archer","heavy_cavalry","spear","sword","archer"];
+let C = {};
+const C_FIELDS = ["cBudget","cMore","cWood","cClay","cIron"];
+function fromBudget(){ const b = parseFloat($("cBudget").value) || 0; Object.keys(COST).forEach(k => C[k] = Math.floor(b / Math.max(...COST[k].slice(0,3)))); }
+fromBudget();
+function renderCostTable(){
+  const keys = $("cMore").checked ? Object.keys(COST) : MAIN7;
+  $("cTable").innerHTML = `<thead><tr><th>Jednostka</th><th>Liczba</th><th>Drewno</th><th>Glina</th><th>Żelazo</th><th>Razem surowców</th><th>Prowiant</th><th>Czas rekrutacji</th><th>Starczy na</th></tr></thead><tbody>` +
+    keys.map(k => `<tr><td>${UNITS[k].n}<div class="hint">1 szt.: ${COST[k].slice(0,3).map(nf).join(" / ")}</div></td>
+      <td><input type="number" min="0" id="cn-${k}" data-cu="${k}" value="${C[k]||""}" placeholder="0"></td>
+      <td class="t" data-c="${k}-0"></td><td class="t" data-c="${k}-1"></td><td class="t" data-c="${k}-2"></td><td class="t" data-c="${k}-sum"></td><td class="t" data-c="${k}-3"></td><td class="t" data-c="${k}-4"></td><td class="t" data-c="${k}-max"></td></tr>`).join("") +
+    `<tr><td><b>Razem</b></td><td class="t" data-c="tot-n"></td><td class="t" data-c="tot-0"></td><td class="t" data-c="tot-1"></td><td class="t" data-c="tot-2"></td><td class="t" data-c="tot-sum"></td><td class="t" data-c="tot-3"></td><td class="t" data-c="tot-4"></td><td></td></tr></tbody>`;
+  calcCosts();
+}
+function fmtDays(sec){ const d = Math.floor(sec/86400); return (d ? d + " d " : "") + fmtDur(sec % 86400); }
+function calcCosts(){
+  const keys = $("cMore").checked ? Object.keys(COST) : MAIN7;
+  const have = ["cWood","cClay","cIron"].map(id => parseFloat($(id).value) || 0);
+  const anyHave = have.some(v => v > 0);
+  const tot = [0,0,0,0,0]; let totN = 0;
+  const set = (k, v) => { const c = document.querySelector(`[data-c="${k}"]`); if (c) c.innerHTML = v; };
+  keys.forEach(k => {
+    const n = C[k] || 0, c = COST[k]; totN += n;
+    for (let i = 0; i < 5; i++) { tot[i] += n * c[i]; }
+    for (let i = 0; i < 4; i++) set(`${k}-${i}`, nf(n*c[i]));
+    set(`${k}-sum`, `<b>${nf(n*(c[0]+c[1]+c[2]))}</b>`);
+    set(`${k}-4`, fmtDays(n*c[4]));
+    set(`${k}-max`, anyHave ? nf(Math.floor(Math.min(...[0,1,2].map(i => have[i] / c[i])))) : "–");
+  });
+  set("tot-n", `<b>${nf(totN)}</b>`);
+  for (let i = 0; i < 4; i++) set(`tot-${i}`, `<b>${nf(tot[i])}</b>`);
+  set("tot-sum", `<b>${nf(tot[0]+tot[1]+tot[2])}</b>`);
+  set("tot-4", `<b>${fmtDays(tot[4])}</b>`);
+  saveC();
+}
+function saveC(){ try { const s = {C}; C_FIELDS.forEach(f => { const e=$(f); s[f] = e.type==="checkbox"?e.checked:e.value; }); localStorage.setItem("tw2koszty2", JSON.stringify(s)); } catch(e){} }
+function loadC(){ try { const s = JSON.parse(localStorage.getItem("tw2koszty2")||"null"); if (!s) return; C = s.C || C; C_FIELDS.forEach(f => { if (s[f]===undefined) return; const e=$(f); if (e.type==="checkbox") e.checked=s[f]; else e.value=s[f]; }); } catch(e){} }
+loadC(); renderCostTable();
+$("cTable").addEventListener("input", e => { const k = e.target.dataset.cu; if (!k) return; C[k] = Math.max(0, parseInt(e.target.value) || 0); calcCosts(); });
+$("cMore").addEventListener("change", renderCostTable);
+["cWood","cClay","cIron"].forEach(id => $(id).addEventListener("input", calcCosts));
+$("cApply").addEventListener("click", () => { fromBudget(); renderCostTable(); });
+$("cBudget").addEventListener("input", () => { fromBudget(); renderCostTable(); });
+$("cClear").addEventListener("click", () => { C = {}; renderCostTable(); });
+
+// ---- zakładki
+const VIEWS = ["plan","walka","koszty"];
+function route(){
+  const h = location.hash.slice(1), v = VIEWS.includes(h) ? h : "plan";
+  VIEWS.forEach(x => { $("view-"+x).hidden = x !== v; if (x === v) $("tab-"+x).setAttribute("aria-current","page"); else $("tab-"+x).removeAttribute("aria-current"); });
+}
+window.addEventListener("hashchange", route); route();
+</script>
+
+</body>
+</html>
