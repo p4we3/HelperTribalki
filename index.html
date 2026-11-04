@@ -75,6 +75,8 @@ table.rows input[type="time"]{width:auto}
 input.bad{border-color:var(--bad);outline:1px solid var(--bad)}
 input:disabled{opacity:.45}
 .rowbtns{display:flex;gap:2px}
+tr.wrow td{vertical-align:top;background:var(--bg)}
+tr.wrow select{display:block;width:150px;padding:4px 6px;font-size:12.5px;margin-bottom:4px}
 table.armies th{vertical-align:bottom}
 .x{border:0;background:none;color:var(--muted);padding:2px 6px;font-size:13px}
 .verdicts{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
@@ -155,6 +157,19 @@ td.gone{color:var(--muted)} td.zero{color:var(--ok);font-weight:600}
   </section>
 
   <section class="panel">
+    <h2>Siła broni rycerza <small>bonus dla jednostki, której broń dotyczy</small></h2>
+    <div class="row">
+      <label for="bW1a">Poz. 1: atak %<input id="bW1a" type="number" min="0" max="200" value="10"></label>
+      <label for="bW1d">Poz. 1: obrona %<input id="bW1d" type="number" min="0" max="200" value="10"></label>
+      <label for="bW2a">Poz. 2: atak %<input id="bW2a" type="number" min="0" max="200" value="20"></label>
+      <label for="bW2d">Poz. 2: obrona %<input id="bW2d" type="number" min="0" max="200" value="20"></label>
+      <label for="bW3a">Poz. 3: atak %<input id="bW3a" type="number" min="0" max="200" value="30"></label>
+      <label for="bW3d">Poz. 3: obrona %<input id="bW3d" type="number" min="0" max="200" value="30"></label>
+    </div>
+    <p class="hint">Broń wybierasz w tabeli wojsk, osobno dla obrony i każdego ataku. Działa tylko wtedy, gdy w tej armii jest rycerz. InnoGames nie podaje publicznie wartości procentowych, więc wpisane tu liczby to wartości przykładowe: sprawdź je u rycerza w grze i popraw, zapamiętam je.</p>
+  </section>
+
+  <section class="panel">
     <h2>Wojska <small>obrona celu i Twoje ataki w kolejności dojścia</small></h2>
     <div class="actions">
       <button id="bAdd">Dodaj atak</button>
@@ -170,7 +185,7 @@ td.gone{color:var(--muted)} td.zero{color:var(--ok);font-weight:600}
     <div class="tablebox"><table id="bDefOut"></table></div>
     <details>
       <summary>Jak liczę walkę</summary>
-      <p class="hint" style="margin-top:10px">Siła ataku to suma ataku jednostek, rozbita na piechotę, kawalerię i łuczników. Obrona każdej jednostki liczy się w tych samych proporcjach (np. przy samej kawalerii liczy się tylko obrona przed kawalerią). Do obrony dochodzi podstawowa obrona muru, a całość mnoży się przez bonus muru (+5% za poziom), wiarę i noc. Silniejsza strona wygrywa, przegrany traci wszystko, a zwycięzca traci (słabsza / silniejsza)^1,5 swoich wojsk. Berserker bije z podwójną siłą, gdy obrona jest silniejsza od ataku. Nie liczę jeszcze burzenia muru taranami ani specjalnej zdolności trebusza. To przybliżenie zasad TW2, nie oficjalny symulator; jeśli wynik w grze wyjdzie inny, wyślij mi raport, dopasuję wzór.</p>
+      <p class="hint" style="margin-top:10px">Siła ataku to suma ataku jednostek, rozbita na piechotę, kawalerię i łuczników. Obrona każdej jednostki liczy się w tych samych proporcjach (np. przy samej kawalerii liczy się tylko obrona przed kawalerią). Do obrony dochodzi podstawowa obrona muru, a całość mnoży się przez bonus muru (+5% za poziom), wiarę i noc. Silniejsza strona wygrywa, przegrany traci wszystko, a zwycięzca traci (słabsza / silniejsza)^1,5 swoich wojsk. Berserker bije z podwójną siłą, gdy obrona jest silniejsza od ataku. Broń rycerza mnoży atak (w ataku) albo obronę (w obronie) jednostki, której dotyczy, o procent z sekcji „Siła broni rycerza”, o ile rycerz jest w tej armii. Nie liczę jeszcze burzenia muru taranami ani specjalnej zdolności trebusza. To przybliżenie zasad TW2, nie oficjalny symulator; jeśli wynik w grze wyjdzie inny, wyślij mi raport, dopasuję wzór.</p>
     </details>
   </section>
   </div>
@@ -402,7 +417,28 @@ const STATS = {
 const UK = Object.keys(STATS);
 const nf = n => Math.round(n).toLocaleString("pl-PL");
 let B = { def:{}, atks:[{name:"Atak 1", u:{}}] };
-const B_FIELDS = ["bWall","bFaithD","bFaithA","bMorale","bLuck","bBonus","bNight"];
+const B_FIELDS = ["bWall","bFaithD","bFaithA","bMorale","bLuck","bBonus","bNight","bW1a","bW1d","bW2a","bW2d","bW3a","bW3d"];
+const WEAPONS = {
+  "":{n:"brak broni"},
+  spear:{n:"Halabarda Guan Yu (pikinierzy)", u:"spear"},
+  sword:{n:"Długi miecz Paracelsusa (miecznicy)", u:"sword"},
+  axe:{n:"Topór bojowy Thorgarda (topornicy)", u:"axe"},
+  archer:{n:"Długi łuk Nimroda (łucznicy)", u:"archer"},
+  light_cavalry:{n:"Lanca Mieszka (lekka kawaleria)", u:"light_cavalry"},
+  mounted_archer:{n:"Łuk kompozytowy Nimroda (łucznicy konni)", u:"mounted_archer"},
+  heavy_cavalry:{n:"Sztandar Baptiste'a (ciężka kawaleria)", u:"heavy_cavalry"},
+  ram:{n:"Morgenstern Karola (tarany)", u:"ram"},
+  catapult:{n:"Ognisko Aletheii (katapulty)", u:"catapult"},
+  snob:{n:"Berło Vasco (szlachcic, bez wpływu na walkę)", u:null},
+};
+// broń działa tylko z rycerzem w armii
+function weaponOf(army){
+  const w = WEAPONS[army.w||""];
+  if (!w || !w.u || !(army.u.knight > 0)) return null;
+  const l = army.l || 1, v = id => (parseFloat($(id).value) || 0)/100;
+  return {unit: w.u, atk: v(`bW${l}a`), def: v(`bW${l}d`)};
+}
+const weaponNote = army => (army.w && WEAPONS[army.w].u && !(army.u.knight > 0)) ? "broń nie działa, bo w tej armii nie ma rycerza" : "";
 const EXAMPLE = {
   def:{spear:8000, sword:7000, archer:5000, heavy_cavalry:400},
   atks:[{name:"512|488 Off 1", u:{axe:6000, light_cavalry:2500, mounted_archer:500, ram:300}},
@@ -420,16 +456,16 @@ function mods(){
     base: wall > 0 ? 20 + 50*wall : 20,
   };
 }
-function fight(att, def, m){
+function fight(att, def, m, wa, wd){
   const strength = berserk => {
     const cls = {inf:0, cav:0, arc:0};
-    UK.forEach(k => { const n = att[k]||0; if (!n) return; cls[STATS[k][4]] += n * STATS[k][0] * (k==="doppelsoldner" ? berserk : 1); });
+    UK.forEach(k => { const n = att[k]||0; if (!n) return; cls[STATS[k][4]] += n * STATS[k][0] * (k==="doppelsoldner" ? berserk : 1) * (wa && wa.unit===k ? 1+wa.atk : 1); });
     const raw = cls.inf + cls.cav + cls.arc;
     const A = raw * m.atk;
     if (!raw) return {A:0, D:0};
     const sh = {inf:cls.inf/raw, cav:cls.cav/raw, arc:cls.arc/raw};
     let d = m.base;
-    UK.forEach(k => { const n = def[k]||0; if (n) d += n * (STATS[k][1]*sh.inf + STATS[k][2]*sh.cav + STATS[k][3]*sh.arc); });
+    UK.forEach(k => { const n = def[k]||0; if (n) d += n * (STATS[k][1]*sh.inf + STATS[k][2]*sh.cav + STATS[k][3]*sh.arc) * (wd && wd.unit===k ? 1+wd.def : 1); });
     return {A, D: d * m.def};
   };
   let r = strength(1), berserk = false;
@@ -445,7 +481,10 @@ function fight(att, def, m){
 
 function renderBattleInput(){
   const head = `<thead><tr><th>Jednostka</th><th>Obrona celu</th>${B.atks.map((a,i)=>`<th><input class="nm" id="bn-${i}" data-name="${i}" value="${esc(a.name)}" aria-label="Nazwa ataku ${i+1}">${B.atks.length>1?`<button class="x" data-del="${i}" aria-label="Usuń atak">usuń</button>`:""}</th>`).join("")}</tr></thead>`;
-  const body = UK.map(k => `<tr><td>${UNITS[k].n}</td>
+  const wsel = (col, army) => `<select id="bw-${col}" data-wcol="${col}" aria-label="Broń rycerza">${Object.entries(WEAPONS).map(([k,w])=>`<option value="${k}"${(army.w||"")===k?" selected":""}>${w.n}</option>`).join("")}</select>
+    <select id="bl-${col}" data-lcol="${col}" aria-label="Poziom broni">${[1,2,3].map(l=>`<option value="${l}"${(army.l||1)==l?" selected":""}>poz. ${l}</option>`).join("")}</select>`;
+  const wrow = `<tr class="wrow"><td>Broń rycerza</td><td>${wsel("def", {w:B.defW, l:B.defL})}</td>${B.atks.map((a,i)=>`<td>${wsel(i, a)}</td>`).join("")}</tr>`;
+  const body = wrow + UK.map(k => `<tr><td>${UNITS[k].n}</td>
     <td><input type="number" min="0" id="bd-${k}" data-col="def" data-u="${k}" value="${B.def[k]||""}" placeholder="0"></td>
     ${B.atks.map((a,i)=>`<td><input type="number" min="0" id="ba-${i}-${k}" data-col="${i}" data-u="${k}" value="${a.u[k]||""}" placeholder="0"></td>`).join("")}</tr>`).join("");
   $("bInput").innerHTML = head + "<tbody>" + body + "</tbody>";
@@ -454,19 +493,23 @@ function simulate(){
   const m = mods();
   let def = {...B.def};
   const stages = [{label:"Przed atakami", def:{...def}}], cards = [];
+  const defArmy = () => ({u: def, w: B.defW, l: B.defL});
   B.atks.forEach((a,i) => {
-    const r = fight(a.u, def, m);
+    const r = fight(a.u, def, m, weaponOf(a), weaponOf(defArmy()));
     const title = esc(a.name || `Atak ${i+1}`);
     if (!r) { cards.push(`<div class="verdict"><h3>${title}<span class="pill past">pusty</span></h3><p class="hint">Brak wojsk w tym ataku.</p></div>`); return; }
     const sent = UK.reduce((s,k)=>s+(a.u[k]||0),0), back = UK.reduce((s,k)=>s+(r.attLeft[k]||0),0);
     const lost = UK.filter(k => a.u[k]).map(k => `<li>${UNITS[k].n}: ${nf(a.u[k])} → wraca ${nf(r.attLeft[k])}</li>`).join("");
     cards.push(`<div class="verdict"><h3>${title}<span class="pill ${r.win?"win":"lose"}">${r.win?"wygrana":"przegrana"}</span></h3>
       <div class="hint">Siła ataku <b class="mono">${nf(r.A)}</b>, obrona <b class="mono">${nf(r.D)}</b>${r.berserk?", berserkerzy ×2":""}</div>
+      ${weaponOf(a) ? `<div class="hint">Broń: ${WEAPONS[a.w].n.split(" (")[0]}, poz. ${a.l||1}</div>` : ""}${weaponNote(a) ? `<div class="hint" style="color:var(--warn)">${weaponNote(a)}</div>` : ""}
       <div>${r.win ? `Twoje straty: <b>${Math.round(r.ratio*100)}%</b> (${nf(sent-back)} jedn.)` : `Obrońca traci <b>${Math.round(r.ratio*100)}%</b> wojsk, cały atak ginie`}</div>
       <ul>${lost}</ul></div>`);
     def = r.defLeft;
     stages.push({label: `Po: ${title}`, def:{...def}});
   });
+  const dn = weaponNote({u:B.def, w:B.defW});
+  if (dn) cards.unshift(`<div class="verdict"><h3>Obrona celu</h3><div class="hint" style="color:var(--warn)">${dn}</div></div>`);
   $("bVerdicts").innerHTML = cards.join("");
   const rows = UK.filter(k => stages.some(st => st.def[k]));
   const last = stages[stages.length-1].def;
@@ -482,6 +525,11 @@ function loadB(){ try { const s = JSON.parse(localStorage.getItem("tw2walka")||"
 
 if (!loadB()) B = JSON.parse(JSON.stringify(EXAMPLE));
 renderBattleInput(); simulate();
+$("bInput").addEventListener("change", e => {
+  const t = e.target, wc = t.dataset.wcol, lc = t.dataset.lcol;
+  if (wc !== undefined) { if (wc === "def") B.defW = t.value; else B.atks[+wc].w = t.value; simulate(); }
+  if (lc !== undefined) { if (lc === "def") B.defL = +t.value; else B.atks[+lc].l = +t.value; simulate(); }
+});
 $("bInput").addEventListener("input", e => {
   const t = e.target;
   if (t.dataset.name !== undefined) { B.atks[+t.dataset.name].name = t.value; simulate(); return; }
