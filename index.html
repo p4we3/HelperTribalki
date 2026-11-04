@@ -69,6 +69,12 @@ details summary{cursor:pointer;font-weight:600}
 .tabs a[aria-current="page"]{background:var(--accent);color:var(--surface)}
 table.armies input{width:84px;padding:5px 7px;font-family:var(--f-mono);font-size:13px}
 table.armies input.nm{width:130px;font-family:var(--f-body)}
+table.rows input.crd{width:92px}
+table.rows select{width:auto;padding:5px 7px;font-size:13px}
+table.rows input[type="time"]{width:auto}
+input.bad{border-color:var(--bad);outline:1px solid var(--bad)}
+input:disabled{opacity:.45}
+.rowbtns{display:flex;gap:2px}
 table.armies th{vertical-align:bottom}
 .x{border:0;background:none;color:var(--muted);padding:2px 6px;font-size:13px}
 .verdicts{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
@@ -94,56 +100,33 @@ td.gone{color:var(--muted)} td.zero{color:var(--ok);font-weight:600}
   </header>
 
   <div class="view" id="view-plan">
-  <p class="hint lead">Wpisz wioski z offem i cele. Planer liczy dystans na mapie heksagonalnej, czas marszu najwolniejszej jednostki i godzinę wysyłki, żeby atak doszedł na czas.</p>
+  <p class="hint lead">Każdy wiersz to jeden atak: skąd wysyłasz, najwolniejsza jednostka, cel i godzina wejścia. Planer liczy dystans na mapie heksagonalnej, czas marszu i godzinę wysyłki. Ustaw dzień na „0 – jak najszybciej”, żeby zobaczyć, kiedy atak dojdzie, jeśli wyślesz go teraz.</p>
 
   <section class="panel">
-    <h2>Świat <small>czas w planerze to czas Twojego urządzenia; sprawdź, czy zgadza się z zegarem gry</small></h2>
-    <div class="row">
-      <label for="arrival">Domyślna godzina dojścia<input id="arrival" type="datetime-local" step="1"></label>
-      <label for="defUnit">Domyślna jednostka offa<select id="defUnit"></select></label>
+    <h2>Ataki <span class="tag" id="sampleTag">przykład</span> <small>czas to zegar Twojego urządzenia; sprawdź, czy zgadza się z zegarem gry</small></h2>
+    <div class="tablebox"><table class="armies rows" id="rowsTable">
+      <thead><tr><th>#</th><th>Z wioski</th><th>Nazwa (opcjonalnie)</th><th>Najwolniejsza jednostka</th><th>Cel</th><th>Dzień wejścia</th><th>Godzina wejścia</th><th></th></tr></thead>
+      <tbody id="rowsBody"></tbody>
+    </table></div>
+    <div class="actions">
+      <button class="primary" id="addRow">Dodaj atak</button>
+      <button id="clearRows">Wyczyść wszystko</button>
+      <button id="copyTxt">Kopiuj plan</button>
+      <span class="hint" id="copyMsg" aria-live="polite"></span>
     </div>
-    <div class="row">
-      <label class="check" for="night"><input id="night" type="checkbox"> Nie planuj wysyłek w nocy</label>
-      <label for="nightFrom">od godz.<input id="nightFrom" type="number" min="0" max="23" value="1"></label>
-      <label for="nightTo">do godz.<input id="nightTo" type="number" min="0" max="23" value="7"></label>
-      <label class="check" for="skipPast"><input id="skipPast" type="checkbox" checked> Pomijaj wysyłki, które już minęły</label>
-    </div>
+    <p class="hint">Współrzędne wpisuj jako <code>512|488</code>; działa też <code>512 488</code>, <code>512.488</code> albo <code>512,488</code>, co jest wygodne na telefonie. „Kopiuj” przy wierszu dodaje kolejny atak z tej samej wioski.</p>
   </section>
-
-  <div class="grid">
-    <section class="panel">
-      <h2>Moje offy <span class="tag" id="offTag">przykład</span></h2>
-      <textarea id="offs" spellcheck="false"></textarea>
-      <p class="hint">Jedna wioska w linii: <code>współrzędne [jednostka] [nazwa]</code>, np. <code>512|488 taran Off 1</code>. Jednostka to najwolniejsza w ataku: <code>taran</code>, <code>szlachcic</code>, <code>topor</code>, <code>lk</code>, <code>ck</code>, <code>trebusz</code>… Bez jednostki bierze domyślną. Żeby wymusić cel, dopisz <code>-&gt; 498|501</code>.</p>
-    </section>
-    <section class="panel">
-      <h2>Cele <span class="tag" id="tgtTag">przykład</span></h2>
-      <textarea id="targets" spellcheck="false"></textarea>
-      <p class="hint">Jedna wioska w linii: <code>współrzędne [liczba ataków] [godzina dojścia]</code>, np. <code>498|501 3 03.11 07:30:00</code>. Bez liczby to 1 atak, bez godziny obowiązuje domyślna.</p>
-    </section>
-  </div>
-
-  <div class="actions">
-    <button class="primary" id="plan">Zaplanuj ataki</button>
-    <button id="copyTxt">Kopiuj plan</button>
-    <span class="hint" id="copyMsg" aria-live="polite"></span>
-  </div>
 
   <section class="panel">
     <h2>Plan wysyłek <small id="nowClock"></small></h2>
     <div class="summary" id="summary"></div>
-    <div class="msgs" id="msgs"></div>
     <div class="tablebox"><table>
-      <thead><tr><th>Status</th><th>Wyślij o</th><th>Z wioski</th><th>Do celu</th><th>Jednostka</th><th>Dystans</th><th>Marsz</th><th>Dojście</th><th>Wysłane</th></tr></thead>
+      <thead><tr><th>Status</th><th>Wyślij o</th><th>Z wioski</th><th>Do celu</th><th>Jednostka</th><th>Dystans</th><th>Marsz</th><th>Wejście</th><th>Wysłane</th></tr></thead>
       <tbody id="planBody"></tbody>
     </table></div>
   </section>
 
   <section class="panel">
-    <details>
-      <summary>Tabela czasów marszu (każdy off do każdego celu)</summary>
-      <div class="tablebox" style="margin-top:12px"><table id="matrix"></table></div>
-    </details>
     <details>
       <summary>Prędkości jednostek i wzór na dystans</summary>
       <div class="tablebox" style="margin-top:12px"><table id="speeds"></table></div>
@@ -240,9 +223,6 @@ for (const [k,u] of Object.entries(UNITS)) u.a.forEach(a => ALIAS[a]=k);
 
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2,"0");
-const SAMPLE_OFFS = "512|488 taran Off północ\n515|491 taran Off 2\n509|494 taran\n520|483 szlachcic Grubas A\n518|486 szlachcic Grubas B\n506|490 lk Fejk LK -> 498|501";
-const SAMPLE_TGTS = "498|501 3\n502|497 2\n495|505 1";
-
 // ---- geometria TW2 (heksy, nieparzyste wiersze przesunięte o pół pola)
 function dist(a,b){
   const ax = a.x + (a.y & 1 ? 0.5 : 0), bx = b.x + (b.y & 1 ? 0.5 : 0);
@@ -266,146 +246,150 @@ function parseWhen(str, fallback){
   if (m) { const d = new Date(fallback); d.setHours(+m[1], +m[2], +(m[3]||0), 0); return d; }
   return null;
 }
-const coordRe = /(\d{1,3})\s*[|:]\s*(\d{1,3})/;
+const coordRe = /^\s*(\d{1,3})\s*[|:,./\s]\s*(\d{1,3})\s*$/;
 const key = c => `${c.x}|${c.y}`;
-
-function parseOffs(text, warn){
-  const out = [];
-  text.split("\n").forEach((raw,i) => {
-    const line = raw.trim(); if (!line || line.startsWith("#")) return;
-    const [left, right] = line.split("->");
-    const m = left.match(coordRe);
-    if (!m) { warn(`Offy, linia ${i+1}: brak współrzędnych („${line}”).`); return; }
-    const rest = left.replace(m[0], " ").trim().split(/\s+/).filter(Boolean);
-    let unit = $("defUnit").value, nameParts = [];
-    rest.forEach(w => { const k = ALIAS[w.toLowerCase()]; if (k && unit === $("defUnit").value && !nameParts.length) unit = k; else nameParts.push(w); });
-    let forced = null;
-    if (right) { const t = right.match(coordRe); if (t) forced = {x:+t[1], y:+t[2]}; else warn(`Offy, linia ${i+1}: po „->” brak współrzędnych celu.`); }
-    out.push({x:+m[1], y:+m[2], unit, name: nameParts.join(" "), forced});
-  });
-  return out;
-}
-function parseTargets(text, defArrival, warn){
-  const out = [];
-  text.split("\n").forEach((raw,i) => {
-    const line = raw.trim(); if (!line || line.startsWith("#")) return;
-    const m = line.match(coordRe);
-    if (!m) { warn(`Cele, linia ${i+1}: brak współrzędnych („${line}”).`); return; }
-    const rest = line.replace(m[0], " ").trim();
-    const when = parseWhen(rest, defArrival);
-    const restNoTime = rest.replace(/\d{1,2}\.\d{1,2}(\.\d{4})?|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}:\d{2}(:\d{2})?/g, " ");
-    const cnt = restNoTime.match(/\b(\d{1,2})\b/);
-    out.push({x:+m[1], y:+m[2], count: cnt ? +cnt[1] : 1, arrival: when || defArrival});
-  });
-  return out;
-}
-function inNight(d){
-  if (!$("night").checked) return false;
-  const f = +$("nightFrom").value, t = +$("nightTo").value, h = d.getHours();
-  return f <= t ? (h >= f && h < t) : (h >= f || h < t);
-}
-
-let PLAN = [], DONE = new Set();
-
-function build(){
-  const msgs = [], warn = s => msgs.push(s);
-  const defArrival = $("arrival").value ? new Date($("arrival").value) : new Date(Date.now()+12*3600e3);
-  const offs = parseOffs($("offs").value, warn);
-  const tgts = parseTargets($("targets").value, defArrival, warn);
-  const now = Date.now();
-  const need = new Map(tgts.map(t => [key(t), {...t, left:t.count}]));
-  const used = new Set(), plan = [];
-  const mk = (o, t) => { const d = dist(o,t), s = travelSec(d,o.unit); return {o, t, d, s, send:new Date(t.arrival.getTime() - s*1000)}; };
-  const ok = p => !(($("skipPast").checked && p.send.getTime() < now) || inNight(p.send));
-
-  offs.forEach((o,i) => {
-    if (!o.forced) return;
-    const t = need.get(key(o.forced)) || {...o.forced, arrival: defArrival, left: 0};
-    const p = mk(o, t); used.add(i);
-    if (!ok(p)) warn(`${key(o)} -> ${key(t)}: wysyłka ${fmtDate(p.send)} wypada w przeszłości albo w nocy. Dodaję mimo to, bo cel był wymuszony.`);
-    plan.push(p); if (t.left) t.left--;
-  });
-  // przydział zachłanny: najkrótsze marsze najpierw
-  const cand = [];
-  offs.forEach((o,i) => { if (used.has(i)) return; need.forEach(t => { const p = mk(o,t); p.i = i; if (ok(p)) cand.push(p); }); });
-  cand.sort((a,b) => a.s - b.s);
-  for (const p of cand) { if (used.has(p.i) || p.t.left <= 0) continue; used.add(p.i); p.t.left--; plan.push(p); }
-
-  need.forEach(t => { if (t.left > 0) warn(`Cel ${key(t)}: brakuje ${t.left} z ${t.count} ataków (za mało offów albo wszystkie wysyłki w przeszłości / w nocy).`); });
-  const idle = offs.filter((o,i) => !used.has(i));
-  if (idle.length) warn(`Niewykorzystane offy: ${idle.map(o=>key(o)).join(", ")}.`);
-
-  plan.sort((a,b) => a.send - b.send);
-  PLAN = plan;
-  const keys = new Set(plan.map(pid));
-  DONE = new Set([...DONE].filter(k => keys.has(k)));
-  $("msgs").innerHTML = msgs.map(m => `<div>${esc(m)}</div>`).join("");
-  $("summary").innerHTML = `<span>Offy: <b>${offs.length}</b></span><span>Cele: <b>${tgts.length}</b></span><span>Zaplanowane ataki: <b>${plan.length}</b></span>` +
-    (plan.length ? `<span>Pierwsza wysyłka: <b>${fmtDate(plan[0].send)}</b></span><span>Ostatnia: <b>${fmtDate(plan[plan.length-1].send)}</b></span>` : "");
-  renderPlan(); renderMatrix(offs, tgts); save();
-}
-const pid = p => `${key(p.o)}>${key(p.t)}@${p.t.arrival.getTime()}`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const parseCoord = str => { const m = String(str||"").match(coordRe); return m ? {x:+m[1], y:+m[2]} : null; };
+const isoDay = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const DAYNAMES = ["niedz.","pon.","wt.","śr.","czw.","pt.","sob."];
 
+let ROWS = [], DONE = new Set(), NEXT_ID = 1;
+function sampleRows(){
+  const t = new Date(Date.now()+86400e3), d = isoDay(t);
+  return [
+    {from:"512|488", name:"Off 1", unit:"ram", to:"498|501", day:d, time:"07:30:00"},
+    {from:"515|491", name:"Off 2", unit:"ram", to:"498|501", day:d, time:"07:30:00"},
+    {from:"520|483", name:"Grubas", unit:"snob", to:"498|501", day:d, time:"07:30:01"},
+    {from:"506|490", name:"Fejk", unit:"light_cavalry", to:"502|497", day:"asap", time:"00:00:00"},
+  ].map(r => ({...r, id: NEXT_ID++}));
+}
+let SAMPLE_SIG = "";
+const sig = () => JSON.stringify(ROWS.map(({id,...r}) => r));
+
+function dayOptions(sel){
+  const opts = [`<option value="asap"${sel==="asap"?" selected":""}>0 – jak najszybciej</option>`];
+  const base = new Date(); base.setHours(12,0,0,0);
+  const days = [];
+  for (let i = 0; i < 8; i++) days.push(isoDay(new Date(base.getTime() + i*86400e3)));
+  if (sel && sel !== "asap" && !days.includes(sel)) days.unshift(sel);
+  days.forEach((v,i) => {
+    const d = new Date(v+"T12:00:00"), rel = Math.round((d - base)/86400e3);
+    const lbl = rel === 0 ? "dziś" : rel === 1 ? "jutro" : rel === 2 ? "pojutrze" : DAYNAMES[d.getDay()];
+    opts.push(`<option value="${v}"${v===sel?" selected":""}>${pad(d.getDate())}.${pad(d.getMonth()+1)} (${lbl})</option>`);
+  });
+  return opts.join("");
+}
+const unitOptions = sel => Object.entries(UNITS).map(([k,u]) => `<option value="${k}"${k===sel?" selected":""}>${u.n} (${u.m} min/pole)</option>`).join("");
+
+function renderRows(){
+  $("rowsBody").innerHTML = ROWS.map((r,i) => {
+    const okF = parseCoord(r.from), okT = parseCoord(r.to);
+    return `<tr data-id="${r.id}"><td class="t">${i+1}</td>
+    <td><input id="rf-${r.id}" data-f="from" inputmode="decimal" placeholder="512|488" value="${esc(r.from)}" class="crd${r.from && !okF ? " bad":""}" aria-label="Z wioski"></td>
+    <td><input id="rn-${r.id}" data-f="name" class="nm" placeholder="np. Off 1" value="${esc(r.name)}" aria-label="Nazwa"></td>
+    <td><select id="ru-${r.id}" data-f="unit" aria-label="Najwolniejsza jednostka">${unitOptions(r.unit)}</select></td>
+    <td><input id="rt-${r.id}" data-f="to" inputmode="decimal" placeholder="498|501" value="${esc(r.to)}" class="crd${r.to && !okT ? " bad":""}" aria-label="Cel"></td>
+    <td><select id="rd-${r.id}" data-f="day" aria-label="Dzień wejścia">${dayOptions(r.day)}</select></td>
+    <td><input id="rh-${r.id}" data-f="time" type="time" step="1" value="${esc(r.time)}" ${r.day==="asap"?"disabled":""} aria-label="Godzina wejścia"></td>
+    <td class="rowbtns"><button class="x" data-act="dup">kopiuj</button><button class="x" data-act="del">usuń</button></td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="hint">Brak ataków. Kliknij „Dodaj atak”.</td></tr>`;
+  $("sampleTag").hidden = sig() !== SAMPLE_SIG;
+}
+
+function compute(){
+  const now = Date.now(), out = [];
+  ROWS.forEach((r,i) => {
+    const f = parseCoord(r.from), t = parseCoord(r.to);
+    if (!f || !t) return;
+    const d = dist(f,t), s = travelSec(d, r.unit);
+    let send, arrival, asap = r.day === "asap", late = false;
+    if (asap) { send = new Date(now); arrival = new Date(now + s*1000); }
+    else {
+      const [hh,mm,ss] = (r.time||"00:00:00").split(":").map(n => +n || 0);
+      arrival = new Date(r.day+"T00:00:00"); arrival.setHours(hh,mm,ss,0);
+      send = new Date(arrival.getTime() - s*1000);
+      late = send.getTime() < now;
+    }
+    out.push({r, i, f, t, d, s, send, arrival, asap, late, earliest: new Date(now + s*1000)});
+  });
+  out.sort((a,b) => a.send - b.send);
+  return out;
+}
 function status(p){
-  if (DONE.has(pid(p))) return `<span class="pill past">wysłane</span>`;
+  if (DONE.has(p.r.id)) return `<span class="pill past">wysłane</span>`;
+  if (p.asap) return `<span class="pill now">wyślij teraz</span>`;
   const left = Math.round((p.send.getTime() - Date.now())/1000);
-  if (left < 0) return `<span class="pill past">minęło ${fmtDur(-left)}</span>`;
+  if (left < 0) return `<span class="pill now">za późno o ${fmtDur(-left)}</span>`;
   if (left <= 120) return `<span class="pill now">za ${fmtDur(left)}</span>`;
   if (left <= 900) return `<span class="pill soon">za ${fmtDur(left)}</span>`;
   return `<span class="pill later">za ${fmtDur(left)}</span>`;
 }
+let PLAN = [];
 function renderPlan(){
-  $("planBody").innerHTML = PLAN.length ? PLAN.map((p,i) => `<tr class="${DONE.has(pid(p))?"sent":""}">
-    <td data-st="${i}">${status(p)}</td><td class="t"><b>${fmtDate(p.send)}</b></td>
-    <td class="t">${key(p.o)}${p.o.name?` <span class="hint">${esc(p.o.name)}</span>`:""}</td><td class="t">${key(p.t)}</td>
-    <td>${UNITS[p.o.unit].n}</td><td class="t">${p.d.toFixed(2)}</td><td class="t">${fmtDur(p.s)}</td><td class="t">${fmtDate(p.t.arrival)}</td>
-    <td><input type="checkbox" id="done-${i}" data-i="${i}" ${DONE.has(pid(p))?"checked":""} aria-label="Oznacz jako wysłane"></td></tr>`).join("")
-    : `<tr><td colspan="9" class="hint">Brak ataków do pokazania. Sprawdź komunikaty powyżej.</td></tr>`;
-}
-function tick(){
+  PLAN = compute();
   $("nowClock").textContent = "teraz " + fmtDate(new Date());
-  PLAN.forEach((p,i) => { const c = document.querySelector(`[data-st="${i}"]`); if (c) c.innerHTML = status(p); });
-}
-function renderMatrix(offs, tgts){
-  if (!offs.length || !tgts.length) { $("matrix").innerHTML = ""; return; }
-  $("matrix").innerHTML = `<thead><tr><th>Off \\ cel</th>${tgts.map(t=>`<th>${key(t)}</th>`).join("")}</tr></thead><tbody>` +
-    offs.map(o => `<tr><td class="t">${key(o)} <span class="hint">${UNITS[o.unit].n}</span></td>${tgts.map(t => { const d = dist(o,t); return `<td class="t">${fmtDur(travelSec(d,o.unit))} <span class="hint">(${d.toFixed(1)})</span></td>`; }).join("")}</tr>`).join("") + "</tbody>";
+  const bad = ROWS.filter(r => !parseCoord(r.from) || !parseCoord(r.to)).length;
+  const late = PLAN.filter(p => p.late && !DONE.has(p.r.id)).length;
+  const next = PLAN.find(p => !DONE.has(p.r.id) && !p.late);
+  $("summary").innerHTML = `<span>Ataki: <b>${PLAN.length}</b></span>` +
+    (next ? `<span>Najbliższa wysyłka: <b>${next.asap ? "teraz" : fmtDate(next.send)}</b></span>` : "") +
+    (late ? `<span style="color:var(--bad)">Za późno: <b>${late}</b></span>` : "") +
+    (bad ? `<span style="color:var(--warn)">Wiersze bez poprawnych współrzędnych: <b>${bad}</b></span>` : "");
+  $("planBody").innerHTML = PLAN.length ? PLAN.map(p => `<tr class="${DONE.has(p.r.id)?"sent":""}">
+    <td>${status(p)}</td><td class="t"><b>${p.asap ? "teraz" : fmtDate(p.send)}</b></td>
+    <td class="t">${key(p.f)}${p.r.name?` <span class="hint">${esc(p.r.name)}</span>`:""}</td><td class="t">${key(p.t)}</td>
+    <td>${UNITS[p.r.unit].n}</td><td class="t">${p.d.toFixed(2)}</td><td class="t">${fmtDur(p.s)}</td>
+    <td class="t">${fmtDate(p.arrival)}${p.late?`<div class="hint">wysłany teraz dojdzie ${fmtDate(p.earliest)}</div>`:""}</td>
+    <td><input type="checkbox" id="done-${p.r.id}" data-done="${p.r.id}" ${DONE.has(p.r.id)?"checked":""} aria-label="Oznacz jako wysłane"></td></tr>`).join("")
+    : `<tr><td colspan="9" class="hint">Wpisz współrzędne wioski i celu, a plan pojawi się tutaj.</td></tr>`;
 }
 function renderSpeeds(){
-  $("speeds").innerHTML = `<thead><tr><th>Jednostka</th><th>Min. na pole</th><th>Skróty</th></tr></thead><tbody>` +
-    Object.values(UNITS).map(u => `<tr><td>${u.n}</td><td class="t">${u.m}</td><td class="t">${u.a.slice(0,3).join(", ")}</td></tr>`).join("") + "</tbody>";
+  $("speeds").innerHTML = `<thead><tr><th>Jednostka</th><th>Min. na pole</th></tr></thead><tbody>` +
+    Object.values(UNITS).map(u => `<tr><td>${u.n}</td><td class="t">${u.m}</td></tr>`).join("") + "</tbody>";
 }
 function planText(){
-  return PLAN.map(p => `${fmtDate(p.send)} | ${key(p.o)}${p.o.name?" ("+p.o.name+")":""} -> ${key(p.t)} | ${UNITS[p.o.unit].n} | marsz ${fmtDur(p.s)} | dojście ${fmtDate(p.t.arrival)}`).join("\n");
+  return PLAN.map(p => `${p.asap ? "TERAZ" : fmtDate(p.send)} | ${key(p.f)}${p.r.name?" ("+p.r.name+")":""} -> ${key(p.t)} | ${UNITS[p.r.unit].n} | marsz ${fmtDur(p.s)} | wejście ${fmtDate(p.arrival)}`).join("\n");
 }
 
 // ---- zapis lokalny
-const FIELDS = ["arrival","defUnit","night","nightFrom","nightTo","skipPast","offs","targets"];
-function save(){ try { const s = {}; FIELDS.forEach(f => { const e=$(f); s[f] = e.type==="checkbox"?e.checked:e.value; }); s.done=[...DONE]; localStorage.setItem("tw2planer", JSON.stringify(s)); } catch(e){} }
-function load(){ try { const s = JSON.parse(localStorage.getItem("tw2planer")||"null"); if (!s) return false;
-  FIELDS.forEach(f => { if (s[f]===undefined) return; const e=$(f); if (e.type==="checkbox") e.checked=s[f]; else e.value=s[f]; }); DONE = new Set(s.done||[]); return true; } catch(e){ return false; } }
+function save(){ try { localStorage.setItem("tw2ataki", JSON.stringify({rows:ROWS, done:[...DONE]})); } catch(e){} }
+function load(){ try { const s = JSON.parse(localStorage.getItem("tw2ataki")||"null"); if (!s || !Array.isArray(s.rows)) return false;
+  ROWS = s.rows; NEXT_ID = Math.max(0, ...ROWS.map(r => r.id||0)) + 1; DONE = new Set(s.done||[]); return true; } catch(e){ return false; } }
 
-$("defUnit").innerHTML = Object.entries(UNITS).map(([k,u]) => `<option value="${k}">${u.n} (${u.m} min/pole)</option>`).join("");
-$("defUnit").value = "ram";
-const loaded = load();
-if (!loaded || (!$("offs").value && !$("targets").value)) {
-  $("offs").value = SAMPLE_OFFS; $("targets").value = SAMPLE_TGTS;
-  const d = new Date(Date.now()+ 48*3600e3); d.setHours(7,30,0,0); $("arrival").value = toLocalInput(d);
-}
-const markSample = () => { $("offTag").hidden = $("offs").value !== SAMPLE_OFFS; $("tgtTag").hidden = $("targets").value !== SAMPLE_TGTS; };
-markSample();
-["offs","targets"].forEach(id => $(id).addEventListener("input", markSample));
-["arrival","defUnit","night","nightFrom","nightTo","skipPast"].forEach(id => $(id).addEventListener("change", () => { renderSpeeds(); build(); }));
-$("plan").addEventListener("click", build);
-$("planBody").addEventListener("change", e => { const i = e.target.dataset.i; if (i===undefined) return; const k = pid(PLAN[i]); e.target.checked ? DONE.add(k) : DONE.delete(k); renderPlan(); save(); });
+ROWS = sampleRows(); SAMPLE_SIG = sig();
+load();
+renderRows(); renderPlan(); renderSpeeds();
+$("rowsBody").addEventListener("input", e => {
+  const tr = e.target.closest("tr[data-id]"), f = e.target.dataset.f; if (!tr || !f) return;
+  const r = ROWS.find(x => x.id === +tr.dataset.id); r[f] = e.target.value;
+  if (f === "from" || f === "to") e.target.classList.toggle("bad", !!e.target.value && !parseCoord(e.target.value));
+  if (f === "day") $("rh-"+r.id).disabled = r.day === "asap";
+  $("sampleTag").hidden = sig() !== SAMPLE_SIG;
+  renderPlan(); save();
+});
+$("rowsBody").addEventListener("click", e => {
+  const act = e.target.dataset.act, tr = e.target.closest("tr[data-id]"); if (!act || !tr) return;
+  const idx = ROWS.findIndex(x => x.id === +tr.dataset.id);
+  if (act === "del") ROWS.splice(idx,1);
+  if (act === "dup") ROWS.splice(idx+1, 0, {...ROWS[idx], to:"", id: NEXT_ID++});
+  renderRows(); renderPlan(); save();
+});
+$("addRow").addEventListener("click", () => {
+  const last = ROWS[ROWS.length-1];
+  const d = new Date(Date.now()+86400e3);
+  ROWS.push({id: NEXT_ID++, from:"", name:"", unit: last ? last.unit : "ram", to: last ? last.to : "", day: last ? last.day : isoDay(d), time: last ? last.time : "07:00:00"});
+  renderRows(); renderPlan(); save();
+  $("rf-"+ROWS[ROWS.length-1].id).focus();
+});
+$("clearRows").addEventListener("click", () => { ROWS = []; DONE = new Set(); renderRows(); renderPlan(); save(); });
+$("planBody").addEventListener("change", e => { const id = e.target.dataset.done; if (id===undefined) return; e.target.checked ? DONE.add(+id) : DONE.delete(+id); renderPlan(); save(); });
 $("copyTxt").addEventListener("click", () => {
   const t = planText();
   const done = () => { $("copyMsg").textContent = "Skopiowano plan."; setTimeout(()=>$("copyMsg").textContent="",2500); };
-  try { navigator.clipboard.writeText(t).then(done, () => fallback(t)); } catch(e){ fallback(t); }
+  try { navigator.clipboard.writeText(t).then(done, fallback); } catch(e){ fallback(); }
 });
-function fallback(t){ $("copyMsg").textContent = "Nie udało się skopiować automatycznie. Plan jest niżej w tabeli; zaznacz i skopiuj ręcznie."; }
-renderSpeeds(); build(); tick(); setInterval(tick, 1000);
+function fallback(){ $("copyMsg").textContent = "Nie udało się skopiować automatycznie. Zaznacz plan w tabeli i skopiuj ręcznie."; }
+setInterval(renderPlan, 1000);
 
 // ================= kalkulator walki =================
 // [atak, obr. piechota, obr. kawaleria, obr. łucznicy, klasa ataku]
